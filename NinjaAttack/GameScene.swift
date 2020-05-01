@@ -135,8 +135,7 @@ class GameScene: SKScene {
     guard let touch = touches.first else {
       return
     }
-    run(SKAction.playSoundFileNamed("pew-pew-lei.caf", waitForCompletion: false))
-
+    
     let touchLocation = touch.location(in: self)
     
     if let monster = physicsWorld.body(at: touchLocation)?.node {
@@ -179,6 +178,33 @@ class GameScene: SKScene {
     let actionMoveDone = SKAction.removeFromParent()
     projectile.run(SKAction.sequence([actionMove, actionMoveDone]))
  */
+  }
+  
+  override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+    guard let touch = touches.first else {
+      return
+    }
+    
+    let touchLocation = touch.location(in: self)
+    
+    if let monster = physicsWorld.body(at: touchLocation)?.node {
+      run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
+      monster.removeFromParent()
+    }
+  }
+  
+  override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    // 1 - Choose one of the touches to work with
+    guard let touch = touches.first else {
+      return
+    }
+    
+    let touchLocation = touch.location(in: self)
+    
+    if let monster = physicsWorld.body(at: touchLocation)?.node {
+      run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
+      monster.removeFromParent()
+    }
   }
   
   func projectileDidCollideWithMonster(projectile: SKSpriteNode, monster: SKSpriteNode) {
