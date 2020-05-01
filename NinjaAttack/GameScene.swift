@@ -75,10 +75,6 @@ class GameScene: SKScene {
   override func didMove(to view: SKView) {
     // 2
     backgroundColor = SKColor.white
-    // 3
-    player.position = CGPoint(x: size.width * 0.1, y: size.height * 0.5)
-    // 4
-    addChild(player)
     
     physicsWorld.gravity = .zero
     physicsWorld.contactDelegate = self
@@ -115,20 +111,20 @@ class GameScene: SKScene {
     monster.physicsBody?.collisionBitMask = PhysicsCategory.none // 5
 
     // Determine where to spawn the monster along the Y axis
-    let actualY = random(min: monster.size.height/2, max: size.height - monster.size.height/2)
+    let actualX = random(min: monster.size.width/2, max: size.width - monster.size.width/2)
     
     // Position the monster slightly off-screen along the right edge,
     // and along a random position along the Y axis as calculated above
-    monster.position = CGPoint(x: size.width + monster.size.width/2, y: actualY)
+    monster.position = CGPoint(x: actualX, y: size.height - monster.size.height/2)
     
     // Add the monster to the scene
     addChild(monster)
     
     // Determine speed of the monster
-    let actualDuration = random(min: CGFloat(4.0), max: CGFloat(6.0))
+    let actualDuration = random(min: CGFloat(2.0), max: CGFloat(4.0))
     
     // Create the actions
-    let actionMove = SKAction.move(to: CGPoint(x: -monster.size.width/2, y: actualY),
+    let actionMove = SKAction.move(to: CGPoint(x: actualX, y: -monster.size.height/2),
                                    duration: TimeInterval(actualDuration))
     let actionMoveDone = SKAction.removeFromParent()
     monster.run(SKAction.sequence([actionMove, actionMoveDone]))
@@ -143,6 +139,11 @@ class GameScene: SKScene {
 
     let touchLocation = touch.location(in: self)
     
+    if let monster = physicsWorld.body(at: touchLocation)?.node {
+      run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
+      monster.removeFromParent()
+    }
+    /*
     // 2 - Set up initial location of projectile
     let projectile = SKSpriteNode(imageNamed: "projectile")
     projectile.position = player.position
@@ -177,6 +178,7 @@ class GameScene: SKScene {
     let actionMove = SKAction.move(to: realDest, duration: 2.0)
     let actionMoveDone = SKAction.removeFromParent()
     projectile.run(SKAction.sequence([actionMove, actionMoveDone]))
+ */
   }
   
   func projectileDidCollideWithMonster(projectile: SKSpriteNode, monster: SKSpriteNode) {
@@ -188,6 +190,7 @@ class GameScene: SKScene {
 }
 
 extension GameScene: SKPhysicsContactDelegate {
+  
   
   func didBegin(_ contact: SKPhysicsContact) {
     // 1
