@@ -45,9 +45,9 @@ func /(point: CGPoint, scalar: CGFloat) -> CGPoint {
 }
 
 #if !(arch(x86_64) || arch(arm64))
-  func sqrt(a: CGFloat) -> CGFloat {
-    return CGFloat(sqrtf(Float(a)))
-  }
+func sqrt(a: CGFloat) -> CGFloat {
+  return CGFloat(sqrtf(Float(a)))
+}
 #endif
 
 extension CGPoint {
@@ -68,60 +68,105 @@ struct PhysicsCategory {
 }
 
 enum ColorType: String {
-    case red = "Red_Ball", green = "Green_Ball", blue = "Blue_Ball", yellow = "Yellow_Ball"
+  case red = "Red_Ball", green = "Green_Ball", blue = "Blue_Ball", yellow = "Yellow_Ball", smashed = "Splattered_Common", redSmashed = "Red_Ball_Splattered"
 }
 
 class Ball: SKSpriteNode {
-
-    var colorType: ColorType {
-        didSet {
-            self.texture = SKTexture(imageNamed: colorType.rawValue)
-        }
+  
+  var colorType: ColorType {
+    didSet {
+      self.texture = SKTexture(imageNamed: colorType.rawValue)
     }
-
-    init(colorType: ColorType) {
-        self.colorType = colorType
-        let texture = SKTexture(imageNamed: colorType.rawValue)
-        super.init(texture: texture, color: .clear, size: texture.size())
-    }
-
-    required init?(coder aDecoder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+  }
+  
+  init(colorType: ColorType) {
+    self.colorType = colorType
+    let texture = SKTexture(imageNamed: colorType.rawValue)
+    super.init(texture: texture, color: .clear, size: texture.size())
+  }
+  
+  required init?(coder aDecoder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
 }
 
 class GameScene: SKScene {
   let player = SKSpriteNode(imageNamed: "chammu")
   let players = ["adam", "fazu", "chammu_left"]
   
+  let scoreValue = SKLabelNode(fontNamed: "Calibre")
+  
+  var score = 0 {
+    didSet {
+      scoreValue.text = "\(score)"
+    }
+  }
   override func didMove(to view: SKView) {
     
     // 2
     backgroundColor = SKColor.white
     
+    let titleMessage = "Ball Smasher"
+    
+    // 3
+    let titleLabel = SKLabelNode(fontNamed: "Calibre")
+    titleLabel.text = titleMessage
+    titleLabel.fontSize = 30
+    titleLabel.fontColor = SKColor.red
+    titleLabel.position = CGPoint(x: size.width * 0.5, y: size.height * 0.9)
+    addChild(titleLabel)
+    
+    
+    let message = "SCORE"
+    
+    // 3
+    let label = SKLabelNode(fontNamed: "Calibre")
+    label.text = message
+    label.fontSize = 15
+    label.fontColor = SKColor.black
+    label.position = CGPoint(x: size.width * 0.85, y: size.height * 0.9)
+    addChild(label)
+    
+    // 3
+    scoreValue.fontSize = 15
+    scoreValue.fontColor = SKColor.black
+    scoreValue.position = CGPoint(x: size.width * 0.8, y: size.height * 0.87)
+    addChild(scoreValue)
+    score = 0
+    
     physicsWorld.gravity = .zero
     physicsWorld.contactDelegate = self
-
+    
     run(SKAction.repeatForever(
       SKAction.sequence([
         SKAction.run(addMonsters),
         SKAction.wait(forDuration: 1.0)
-        ])
+      ])
     ))
     
     let backgroundMusic = SKAudioNode(fileNamed: "background-music-aac.caf")
     backgroundMusic.autoplayLooped = true
     addChild(backgroundMusic)
+    
+    let topContainer = SKSpriteNode(imageNamed: "Top_Container")
+    topContainer.aspectFillToSize(fillSize: view.frame.size)
+    topContainer.position = CGPoint(x: size.width/2, y: size.height * 0.82)
+    addChild(topContainer)
+    
+    let bottomContainer = SKSpriteNode(imageNamed: "Bottom_Container")
+    bottomContainer.aspectFillToSize(fillSize: view.frame.size)
+    bottomContainer.position = CGPoint(x: size.width/2, y: size.height * 0.03)
+    addChild(bottomContainer)
   }
   
   func random() -> CGFloat {
     return CGFloat(Float(arc4random()) / 0xFFFFFFFF)
   }
-
+  
   func random(min: CGFloat, max: CGFloat) -> CGFloat {
     return random() * (max - min) + min
   }
-
+  
   func addMonsters() {
     addMonster(position: 0.2, ball: .blue)
     addMonster(position: 0.4, ball: .green)
@@ -133,15 +178,15 @@ class GameScene: SKScene {
     
     // Create sprite
     let monster = Ball(colorType: ball)
-    monster.size.height = 80
-    monster.size.width = 80
+    monster.size.height = 60
+    monster.size.width = 60
     monster.physicsBody = SKPhysicsBody(rectangleOf: monster.size) // 1
     monster.physicsBody?.isDynamic = true // 2
     monster.physicsBody?.categoryBitMask = PhysicsCategory.monster // 3
     monster.physicsBody?.contactTestBitMask = PhysicsCategory.projectile // 4
     monster.physicsBody?.collisionBitMask = PhysicsCategory.none // 5
-
-    monster.position = CGPoint(x: size.width * CGFloat(position), y: size.height * 0.9)
+    
+    monster.position = CGPoint(x: size.width * CGFloat(position), y: size.height * 0.8)
     
     // Add the monster to the scene
     addChild(monster)
@@ -155,7 +200,7 @@ class GameScene: SKScene {
     let actionMoveDone = SKAction.removeFromParent()
     monster.run(SKAction.sequence([actionMove, actionMoveDone]))
   }
-
+  
   override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
     // 1 - Choose one of the touches to work with
     guard let touch = touches.first else {
@@ -165,12 +210,15 @@ class GameScene: SKScene {
     let touchLocation = touch.location(in: self)
     
     if let monster = physicsWorld.body(at: touchLocation)?.node {
-      run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
       if let examp = monster as? Ball {
-        if(examp.colorType == .red) {
-          examp.texture = SKTexture.init(imageNamed: "Red_Ball_Splattered")
-        } else {
-          examp.texture = SKTexture.init(imageNamed: "Splattered_Common")
+        if (examp.colorType != .smashed && examp.colorType != .redSmashed) {
+          run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
+          if(examp.colorType == .red) {
+            examp.colorType = .redSmashed
+          } else   {
+            examp.colorType = .smashed
+          }
+          score += 10
         }
       }
     }
@@ -184,32 +232,15 @@ class GameScene: SKScene {
     let touchLocation = touch.location(in: self)
     
     if let monster = physicsWorld.body(at: touchLocation)?.node {
-      run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
       if let examp = monster as? Ball {
-        if(examp.colorType == .red) {
-          examp.texture = SKTexture.init(imageNamed: "Red_Ball_Splattered")
-        } else {
-          examp.texture = SKTexture.init(imageNamed: "Splattered_Common")
-        }
-      }
-    }
-  }
-  
-  override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-    // 1 - Choose one of the touches to work with
-    guard let touch = touches.first else {
-      return
-    }
-    
-    let touchLocation = touch.location(in: self)
-    
-    if let monster = physicsWorld.body(at: touchLocation)?.node {
-      run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
-      if let examp = monster as? Ball {
-        if(examp.colorType == .red) {
-          examp.texture = SKTexture.init(imageNamed: "Red_Ball_Splattered")
-        } else {
-          examp.texture = SKTexture.init(imageNamed: "Splattered_Common")
+        if (examp.colorType != .smashed && examp.colorType != .redSmashed) {
+          run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
+          if(examp.colorType == .red) {
+            examp.colorType = .redSmashed
+          } else   {
+            examp.colorType = .smashed
+          }
+          score += 10
         }
       }
     }
@@ -237,14 +268,32 @@ extension GameScene: SKPhysicsContactDelegate {
       firstBody = contact.bodyB
       secondBody = contact.bodyA
     }
-   
+    
     // 2
     if ((firstBody.categoryBitMask & PhysicsCategory.monster != 0) &&
-        (secondBody.categoryBitMask & PhysicsCategory.projectile != 0)) {
+      (secondBody.categoryBitMask & PhysicsCategory.projectile != 0)) {
       if let monster = firstBody.node as? SKSpriteNode,
         let projectile = secondBody.node as? SKSpriteNode {
         projectileDidCollideWithMonster(projectile: projectile, monster: monster)
       }
     }
   }
+}
+
+extension SKSpriteNode {
+  
+  func aspectFillToSize(fillSize: CGSize) {
+    
+    if texture != nil {
+      self.size = texture!.size()
+      
+      let verticalRatio = fillSize.height / self.texture!.size().height
+      let horizontalRatio = fillSize.width /  self.texture!.size().width
+      
+      let scaleRatio = horizontalRatio < verticalRatio ? horizontalRatio : verticalRatio
+      
+      self.setScale(scaleRatio)
+    }
+  }
+  
 }

@@ -7,16 +7,16 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "E67BFFF9-F90F-4ABA-824B-C88493613A10"
+            uuid = "35933C05-27EA-406A-B7A2-6B1E6CF4AE66"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "NinjaAttack/GameScene.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "170"
-            endingLineNumber = "170"
-            landmarkName = "touchesEnded(_:with:)"
+            startingLineNumber = "290"
+            endingLineNumber = "290"
+            landmarkName = "aspectFillToSize(fillSize:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
