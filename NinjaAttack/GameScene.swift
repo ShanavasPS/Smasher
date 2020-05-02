@@ -67,12 +67,35 @@ struct PhysicsCategory {
   static let projectile: UInt32 = 0b10      // 2
 }
 
+enum ColorType: String {
+    case red = "Red_Ball", green = "Green_Ball", blue = "Blue_Ball", yellow = "Yellow_Ball"
+}
+
+class Ball: SKSpriteNode {
+
+    var colorType: ColorType {
+        didSet {
+            self.texture = SKTexture(imageNamed: colorType.rawValue)
+        }
+    }
+
+    init(colorType: ColorType) {
+        self.colorType = colorType
+        let texture = SKTexture(imageNamed: colorType.rawValue)
+        super.init(texture: texture, color: .clear, size: texture.size())
+    }
+
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
 
 class GameScene: SKScene {
   let player = SKSpriteNode(imageNamed: "chammu")
   let players = ["adam", "fazu", "chammu_left"]
   
   override func didMove(to view: SKView) {
+    
     // 2
     backgroundColor = SKColor.white
     
@@ -81,7 +104,7 @@ class GameScene: SKScene {
 
     run(SKAction.repeatForever(
       SKAction.sequence([
-        SKAction.run(addMonster),
+        SKAction.run(addMonsters),
         SKAction.wait(forDuration: 1.0)
         ])
     ))
@@ -99,32 +122,35 @@ class GameScene: SKScene {
     return random() * (max - min) + min
   }
 
-  func addMonster() {
+  func addMonsters() {
+    addMonster(position: 0.2, ball: .blue)
+    addMonster(position: 0.4, ball: .green)
+    addMonster(position: 0.6, ball: .red)
+    addMonster(position: 0.8, ball: .yellow)
+  }
+  
+  func addMonster(position: Double, ball: ColorType) {
     
     // Create sprite
-    let monster = SKSpriteNode(imageNamed: players.randomElement() ?? "adam")
-    
+    let monster = Ball(colorType: ball)
+    monster.size.height = 80
+    monster.size.width = 80
     monster.physicsBody = SKPhysicsBody(rectangleOf: monster.size) // 1
     monster.physicsBody?.isDynamic = true // 2
     monster.physicsBody?.categoryBitMask = PhysicsCategory.monster // 3
     monster.physicsBody?.contactTestBitMask = PhysicsCategory.projectile // 4
     monster.physicsBody?.collisionBitMask = PhysicsCategory.none // 5
 
-    // Determine where to spawn the monster along the Y axis
-    let actualX = random(min: monster.size.width/2, max: size.width - monster.size.width/2)
-    
-    // Position the monster slightly off-screen along the right edge,
-    // and along a random position along the Y axis as calculated above
-    monster.position = CGPoint(x: actualX, y: size.height - monster.size.height/2)
+    monster.position = CGPoint(x: size.width * CGFloat(position), y: size.height * 0.9)
     
     // Add the monster to the scene
     addChild(monster)
     
     // Determine speed of the monster
-    let actualDuration = random(min: CGFloat(2.0), max: CGFloat(4.0))
+    let actualDuration = CGFloat(8.0)
     
     // Create the actions
-    let actionMove = SKAction.move(to: CGPoint(x: actualX, y: -monster.size.height/2),
+    let actionMove = SKAction.move(to: CGPoint(x: size.width * CGFloat(position), y: -monster.size.height/2),
                                    duration: TimeInterval(actualDuration))
     let actionMoveDone = SKAction.removeFromParent()
     monster.run(SKAction.sequence([actionMove, actionMoveDone]))
@@ -140,44 +166,14 @@ class GameScene: SKScene {
     
     if let monster = physicsWorld.body(at: touchLocation)?.node {
       run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
-      monster.removeFromParent()
+      if let examp = monster as? Ball {
+        if(examp.colorType == .red) {
+          examp.texture = SKTexture.init(imageNamed: "Red_Ball_Splattered")
+        } else {
+          examp.texture = SKTexture.init(imageNamed: "Splattered_Common")
+        }
+      }
     }
-    /*
-    // 2 - Set up initial location of projectile
-    let projectile = SKSpriteNode(imageNamed: "projectile")
-    projectile.position = player.position
-    
-    projectile.physicsBody = SKPhysicsBody(circleOfRadius: projectile.size.width/2)
-    projectile.physicsBody?.isDynamic = true
-    projectile.physicsBody?.categoryBitMask = PhysicsCategory.projectile
-    projectile.physicsBody?.contactTestBitMask = PhysicsCategory.monster
-    projectile.physicsBody?.collisionBitMask = PhysicsCategory.none
-    projectile.physicsBody?.usesPreciseCollisionDetection = true
-
-    
-    // 3 - Determine offset of location to projectile
-    let offset = touchLocation - projectile.position
-    
-    // 4 - Bail out if you are shooting down or backwards
-    if offset.x < 0 { return }
-    
-    // 5 - OK to add now - you've double checked position
-    addChild(projectile)
-    
-    // 6 - Get the direction of where to shoot
-    let direction = offset.normalized()
-    
-    // 7 - Make it shoot far enough to be guaranteed off screen
-    let shootAmount = direction * 1000
-    
-    // 8 - Add the shoot amount to the current position
-    let realDest = shootAmount + projectile.position
-    
-    // 9 - Create the actions
-    let actionMove = SKAction.move(to: realDest, duration: 2.0)
-    let actionMoveDone = SKAction.removeFromParent()
-    projectile.run(SKAction.sequence([actionMove, actionMoveDone]))
- */
   }
   
   override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -189,7 +185,13 @@ class GameScene: SKScene {
     
     if let monster = physicsWorld.body(at: touchLocation)?.node {
       run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
-      monster.removeFromParent()
+      if let examp = monster as? Ball {
+        if(examp.colorType == .red) {
+          examp.texture = SKTexture.init(imageNamed: "Red_Ball_Splattered")
+        } else {
+          examp.texture = SKTexture.init(imageNamed: "Splattered_Common")
+        }
+      }
     }
   }
   
@@ -203,7 +205,13 @@ class GameScene: SKScene {
     
     if let monster = physicsWorld.body(at: touchLocation)?.node {
       run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
-      monster.removeFromParent()
+      if let examp = monster as? Ball {
+        if(examp.colorType == .red) {
+          examp.texture = SKTexture.init(imageNamed: "Red_Ball_Splattered")
+        } else {
+          examp.texture = SKTexture.init(imageNamed: "Splattered_Common")
+        }
+      }
     }
   }
   
