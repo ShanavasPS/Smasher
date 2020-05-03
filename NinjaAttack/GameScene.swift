@@ -50,6 +50,14 @@ func sqrt(a: CGFloat) -> CGFloat {
 }
 #endif
 
+func random() -> CGFloat {
+  return CGFloat(Float(arc4random()) / 0xFFFFFFFF)
+}
+
+func random(min: CGFloat, max: CGFloat) -> CGFloat {
+  return random() * (max - min) + min
+}
+
 extension CGPoint {
   func length() -> CGFloat {
     return sqrt(x*x + y*y)
@@ -67,15 +75,19 @@ struct PhysicsCategory {
   static let projectile: UInt32 = 0b10      // 2
 }
 
-enum ColorType: String {
-  case red = "Red_Ball", green = "Green_Ball", blue = "Blue_Ball", yellow = "Yellow_Ball", smashed = "Splattered_Common", redSmashed = "Red_Ball_Splattered"
+enum ColorType: String, CaseIterable {
+  case red = "Red_Ball", green = "Green_Ball", blue = "Blue_Ball", yellow = "Yellow_Ball"
 }
 
 class Ball: SKSpriteNode {
   
   var colorType: ColorType {
     didSet {
-      self.texture = SKTexture(imageNamed: colorType.rawValue)
+      if smashed {
+        self.texture = SKTexture(imageNamed: colorType.rawValue + "_Splash")
+      } else {
+        self.texture = SKTexture(imageNamed: colorType.rawValue)
+      }
     }
   }
   
@@ -83,6 +95,16 @@ class Ball: SKSpriteNode {
     self.colorType = colorType
     let texture = SKTexture(imageNamed: colorType.rawValue)
     super.init(texture: texture, color: .clear, size: texture.size())
+  }
+  
+  var smashed: Bool = false {
+    didSet {
+      if smashed {
+      self.texture = SKTexture(imageNamed: colorType.rawValue + "_Splash")
+    } else {
+      self.texture = SKTexture(imageNamed: colorType.rawValue)
+    }
+  }
   }
   
   required init?(coder aDecoder: NSCoder) {
@@ -151,35 +173,36 @@ class GameScene: SKScene {
     let topContainer = SKSpriteNode(imageNamed: "Top_Container")
     topContainer.aspectFillToSize(fillSize: view.frame.size)
     topContainer.position = CGPoint(x: size.width/2, y: size.height * 0.82)
+    topContainer.zPosition = 1
     addChild(topContainer)
     
     let bottomContainer = SKSpriteNode(imageNamed: "Bottom_Container")
     bottomContainer.aspectFillToSize(fillSize: view.frame.size)
-    bottomContainer.position = CGPoint(x: size.width/2, y: size.height * 0.03)
+    bottomContainer.position = CGPoint(x: size.width/2, y: size.height * 0.025)
+    bottomContainer.zPosition = 1
+    bottomContainer.physicsBody = SKPhysicsBody(rectangleOf: bottomContainer.size)
+    bottomContainer.physicsBody?.isDynamic = true
+    bottomContainer.physicsBody?.categoryBitMask = PhysicsCategory.projectile
+    bottomContainer.physicsBody?.contactTestBitMask = PhysicsCategory.monster
+    bottomContainer.physicsBody?.collisionBitMask = PhysicsCategory.none
+    bottomContainer.physicsBody?.usesPreciseCollisionDetection = true
+    
     addChild(bottomContainer)
   }
   
-  func random() -> CGFloat {
-    return CGFloat(Float(arc4random()) / 0xFFFFFFFF)
-  }
-  
-  func random(min: CGFloat, max: CGFloat) -> CGFloat {
-    return random() * (max - min) + min
-  }
-  
   func addMonsters() {
-    addMonster(position: 0.2, ball: .blue)
-    addMonster(position: 0.4, ball: .green)
-    addMonster(position: 0.6, ball: .red)
-    addMonster(position: 0.8, ball: .yellow)
+    addMonster(position: 0.10, ball: ColorType.allCases.randomElement()!)
+    addMonster(position: 0.37, ball: ColorType.allCases.randomElement()!)
+    addMonster(position: 0.635, ball: ColorType.allCases.randomElement()!)
+    addMonster(position: 0.90, ball: ColorType.allCases.randomElement()!)
   }
   
   func addMonster(position: Double, ball: ColorType) {
     
     // Create sprite
     let monster = Ball(colorType: ball)
-    monster.size.height = 60
-    monster.size.width = 60
+    monster.size.height = 40
+    monster.size.width = 40
     monster.physicsBody = SKPhysicsBody(rectangleOf: monster.size) // 1
     monster.physicsBody?.isDynamic = true // 2
     monster.physicsBody?.categoryBitMask = PhysicsCategory.monster // 3
@@ -187,7 +210,7 @@ class GameScene: SKScene {
     monster.physicsBody?.collisionBitMask = PhysicsCategory.none // 5
     
     monster.position = CGPoint(x: size.width * CGFloat(position), y: size.height * 0.8)
-    
+    monster.zPosition = 0
     // Add the monster to the scene
     addChild(monster)
     
@@ -211,13 +234,9 @@ class GameScene: SKScene {
     
     if let monster = physicsWorld.body(at: touchLocation)?.node {
       if let examp = monster as? Ball {
-        if (examp.colorType != .smashed && examp.colorType != .redSmashed) {
+        if (!examp.smashed) {
           run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
-          if(examp.colorType == .red) {
-            examp.colorType = .redSmashed
-          } else   {
-            examp.colorType = .smashed
-          }
+          examp.smashed = true
           score += 10
         }
       }
@@ -233,13 +252,9 @@ class GameScene: SKScene {
     
     if let monster = physicsWorld.body(at: touchLocation)?.node {
       if let examp = monster as? Ball {
-        if (examp.colorType != .smashed && examp.colorType != .redSmashed) {
+        if (!examp.smashed) {
           run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
-          if(examp.colorType == .red) {
-            examp.colorType = .redSmashed
-          } else   {
-            examp.colorType = .smashed
-          }
+          examp.smashed = true
           score += 10
         }
       }
@@ -248,9 +263,12 @@ class GameScene: SKScene {
   
   func projectileDidCollideWithMonster(projectile: SKSpriteNode, monster: SKSpriteNode) {
     print("Hit")
-    run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
-    projectile.removeFromParent()
-    monster.removeFromParent()
+    //run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
+    //projectile.removeFromParent()
+    //monster.removeFromParent()
+    if let examp = monster as? Ball {
+      examp.smashed = true
+    }
   }
 }
 
