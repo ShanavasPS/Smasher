@@ -84,6 +84,8 @@ class GameScene: SKScene {
   let life1 = Life()
   let life2 = Life()
   let life3 = Life()
+  var lives = [Life]()
+
   
   var score = 0 {
     didSet {
@@ -149,26 +151,19 @@ class GameScene: SKScene {
     let backgroundMusic = SKAudioNode(fileNamed: "background-music-aac.caf")
     backgroundMusic.autoplayLooped = true
     addChild(backgroundMusic)
+    var xPos:CGFloat = 0
+    for _ in 0..<3 {
+        lives.append(Life())
+    }
     
-    life1.size.width = 20
-    life1.size.height = 20
-    life1.position = CGPoint(x: 30, y: size.height * 0.85)
-    life1.zPosition = 1
-    addChild(life1)
-    
-    life2.size.width = 20
-    life2.size.height = 20
-    life2.position.x = life1.position.x + life1.size.width + 5
-    life2.position.y = life1.position.y
-    life2.zPosition = 1
-    addChild(life2)
-    
-    life3.size.width = 20
-    life3.size.height = 20
-    life3.position.x = life2.position.x + life2.size.width + 5
-    life3.position.y = life2.position.y
-    life3.zPosition = 1
-    addChild(life3)
+    for (index, life) in lives.enumerated() {
+      life.size.width = 20
+      life.size.height = 20
+      xPos = CGFloat(25 + index * 25)
+      life.position = CGPoint(x: xPos, y: size.height * 0.85)
+      life.zPosition = 1
+      addChild(life)
+    }
     
     let topContainer = SKSpriteNode(imageNamed: "Top_Container")
     topContainer.aspectFillToSize(fillSize: view.frame.size)
@@ -228,7 +223,8 @@ class GameScene: SKScene {
     if ball.colorType == smashBall.colorType {
       score += 10
     } else {
-      life1.status = .dead
+      let livesLeft = lives.filter { $0.status == .alive }
+      lives[livesLeft.count - 1].status = .dead
     }
   }
   
