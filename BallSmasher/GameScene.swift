@@ -75,48 +75,15 @@ struct PhysicsCategory {
   static let projectile: UInt32 = 0b10      // 2
 }
 
-enum ColorType: String, CaseIterable {
-  case red = "Red_Ball", green = "Green_Ball", blue = "Blue_Ball", yellow = "Yellow_Ball"
-}
-
-class Ball: SKSpriteNode {
-  
-  var colorType: ColorType {
-    didSet {
-      if smashed {
-        self.texture = SKTexture(imageNamed: colorType.rawValue + "_Splash")
-      } else {
-        self.texture = SKTexture(imageNamed: colorType.rawValue)
-      }
-    }
-  }
-  
-  init(colorType: ColorType) {
-    self.colorType = colorType
-    let texture = SKTexture(imageNamed: colorType.rawValue)
-    super.init(texture: texture, color: .clear, size: texture.size())
-  }
-  
-  var smashed: Bool = false {
-    didSet {
-      if smashed {
-      self.texture = SKTexture(imageNamed: colorType.rawValue + "_Splash")
-    } else {
-      self.texture = SKTexture(imageNamed: colorType.rawValue)
-    }
-  }
-  }
-  
-  required init?(coder aDecoder: NSCoder) {
-    fatalError("init(coder:) has not been implemented")
-  }
-}
-
 class GameScene: SKScene {
   let player = SKSpriteNode(imageNamed: "chammu")
   let players = ["adam", "fazu", "chammu_left"]
   
   let scoreValue = SKLabelNode(fontNamed: "Calibre")
+  var smashBall = Ball(colorType: .red)
+  let life1 = Life()
+  let life2 = Life()
+  let life3 = Life()
   
   var score = 0 {
     didSet {
@@ -135,9 +102,22 @@ class GameScene: SKScene {
     titleLabel.text = titleMessage
     titleLabel.fontSize = 30
     titleLabel.fontColor = SKColor.red
-    titleLabel.position = CGPoint(x: size.width * 0.5, y: size.height * 0.9)
+    titleLabel.position = CGPoint(x: size.width * 0.5, y: size.height * 0.92)
     addChild(titleLabel)
     
+    let subtitleLabel = SKLabelNode(fontNamed: "Calibre")
+    subtitleLabel.text = "Smash"
+    subtitleLabel.fontSize = 20
+    subtitleLabel.fontColor = SKColor.black
+    subtitleLabel.position = CGPoint(x: size.width * 0.5, y: size.height * 0.88)
+    addChild(subtitleLabel)
+    
+    smashBall = Ball(colorType: ColorType.allCases.randomElement()!)
+    smashBall.size.width = 30
+    smashBall.size.height = 30
+    smashBall.position = CGPoint(x: size.width * 0.5, y: size.height * 0.85)
+    smashBall.zPosition = 1
+    addChild(smashBall)
     
     let message = "SCORE"
     
@@ -170,9 +150,29 @@ class GameScene: SKScene {
     backgroundMusic.autoplayLooped = true
     addChild(backgroundMusic)
     
+    life1.size.width = 20
+    life1.size.height = 20
+    life1.position = CGPoint(x: 30, y: size.height * 0.85)
+    life1.zPosition = 1
+    addChild(life1)
+    
+    life2.size.width = 20
+    life2.size.height = 20
+    life2.position.x = life1.position.x + life1.size.width + 5
+    life2.position.y = life1.position.y
+    life2.zPosition = 1
+    addChild(life2)
+    
+    life3.size.width = 20
+    life3.size.height = 20
+    life3.position.x = life2.position.x + life2.size.width + 5
+    life3.position.y = life2.position.y
+    life3.zPosition = 1
+    addChild(life3)
+    
     let topContainer = SKSpriteNode(imageNamed: "Top_Container")
     topContainer.aspectFillToSize(fillSize: view.frame.size)
-    topContainer.position = CGPoint(x: size.width/2, y: size.height * 0.82)
+    topContainer.position = CGPoint(x: size.width/2, y: size.height * 0.81)
     topContainer.zPosition = 1
     addChild(topContainer)
     
@@ -224,23 +224,39 @@ class GameScene: SKScene {
     monster.run(SKAction.sequence([actionMove, actionMoveDone]))
   }
   
+  func validateHit(ball: Ball) {
+    if ball.colorType == smashBall.colorType {
+      score += 10
+    } else {
+      life1.status = .dead
+    }
+  }
+  
+  func handleBallHit(ball: Ball) {
+    if (!ball.smashed) {
+      run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
+      ball.smashed = true
+      validateHit(ball: ball)
+    }
+  }
+  
+  func handleBallTouch(_ touch: UITouch) {
+    let touchLocation = touch.location(in: self)
+    
+    if let monster = physicsWorld.body(at: touchLocation)?.node {
+      if let ball = monster as? Ball {
+        handleBallHit(ball: ball)
+      }
+    }
+  }
+  
   override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
     // 1 - Choose one of the touches to work with
     guard let touch = touches.first else {
       return
     }
     
-    let touchLocation = touch.location(in: self)
-    
-    if let monster = physicsWorld.body(at: touchLocation)?.node {
-      if let examp = monster as? Ball {
-        if (!examp.smashed) {
-          run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
-          examp.smashed = true
-          score += 10
-        }
-      }
-    }
+    handleBallTouch(touch)
   }
   
   override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -248,17 +264,7 @@ class GameScene: SKScene {
       return
     }
     
-    let touchLocation = touch.location(in: self)
-    
-    if let monster = physicsWorld.body(at: touchLocation)?.node {
-      if let examp = monster as? Ball {
-        if (!examp.smashed) {
-          run(SKAction.playSoundFileNamed("blast.mp3", waitForCompletion: false))
-          examp.smashed = true
-          score += 10
-        }
-      }
-    }
+    handleBallTouch(touch)
   }
   
   func projectileDidCollideWithMonster(projectile: SKSpriteNode, monster: SKSpriteNode) {
@@ -270,6 +276,8 @@ class GameScene: SKScene {
       examp.smashed = true
     }
   }
+  
+  
 }
 
 extension GameScene: SKPhysicsContactDelegate {
