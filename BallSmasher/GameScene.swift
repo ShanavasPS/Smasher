@@ -224,7 +224,13 @@ class GameScene: SKScene {
       score += 10
     } else {
       let livesLeft = lives.filter { $0.status == .alive }
-      lives[livesLeft.count - 1].status = .dead
+      if livesLeft.count > 0 {
+        lives[livesLeft.count - 1].status = .dead
+      } else {
+        let reveal = SKTransition.flipHorizontal(withDuration: 0.5)
+        let gameOverScene = GameOverScene(size: self.size, won: false)
+        view?.presentScene(gameOverScene, transition: reveal)
+      }
     }
   }
   
@@ -317,5 +323,4 @@ extension SKSpriteNode {
       self.setScale(scaleRatio)
     }
   }
-  
 }
